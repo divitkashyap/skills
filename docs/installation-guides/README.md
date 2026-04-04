@@ -12,6 +12,7 @@ This directory contains detailed installation instructions for the GitHub MCP Se
 - **[Google Gemini CLI](install-gemini-cli.md)** - Installation guide for Google Gemini CLI
 - **[OpenAI Codex](install-codex.md)** - Installation guide for OpenAI Codex
 - **[Roo Code](install-roo-code.md)** - Installation guide for Roo Code
+- **[OpenCode](install-opencode.md)** - Installation guide for OpenCode
 - **[Windsurf](install-windsurf.md)** - Installation guide for Windsurf IDE
 
 ## Support by Host Application
@@ -29,6 +30,7 @@ This directory contains detailed installation instructions for the GitHub MCP Se
 | Cursor | ✅ | ✅ PAT + ❌ No OAuth | Docker or Go build, GitHub PAT | Easy |
 | Google Gemini CLI | ✅ | ✅ PAT + ❌ No OAuth | Docker or Go build, GitHub PAT | Easy |
 | Roo Code | ✅ | ✅ PAT + ❌ No OAuth | Docker or Go build, GitHub PAT | Easy |
+| OpenCode | ✅ | ✅ PAT + ❌ No OAuth | Docker, Go build, or binary, GitHub PAT | Easy |
 | Windsurf | ✅ | ✅ PAT + ❌ No OAuth | Docker or Go build, GitHub PAT | Easy |
 | Copilot in Xcode | ✅ | ✅ Full (OAuth + PAT) | Local: Docker or Go build, GitHub PAT<br>Remote: Copilot for Xcode 0.41.0+ | Easy |
 | Copilot in Eclipse | ✅ | ✅ Full (OAuth + PAT) | Local: Docker or Go build, GitHub PAT<br>Remote: Eclipse Plug-in for Copilot 0.10.0+ | Easy |
