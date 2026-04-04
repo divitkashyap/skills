@@ -107,10 +107,12 @@ Extract the image path from the message. If the path starts with `clipboard-` or
 If the image path looks like a macOS clipboard screenshot paste (e.g., `clipboard-2026-04-04-150832-31CED8F8.png`) or the user says "this screenshot" or "clipboard image":
 
 ```bash
-python3 skills/vision-analysis/scripts/clipboard_image.py
+/usr/bin/python3 skills/vision-analysis/scripts/clipboard_image.py
 # Saves clipboard image to /tmp/vision-clipboard-<timestamp>.png
 # Output: /tmp/vision-clipboard-20260404_150832.png
 ```
+
+**Important:** Always use `/usr/bin/python3` — do NOT use `python3` alone. The agent's PATH may not include python3, but `/usr/bin/python3` exists on macOS and most Linux systems. If `/usr/bin/python3` is not found, try `/usr/local/bin/python3`.
 
 The agent should:
 1. Call the clipboard script

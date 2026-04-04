@@ -4,6 +4,10 @@
 clipboard_image.py — Save image from clipboard to a temp file.
 Cross-platform: macOS, Linux, Windows.
 
+macOS: uses osascript clipboard API (TIFF then PNGf)
+Linux: uses xclip or wl-paste
+Windows: uses PowerShell
+
 Usage:
     python3 clipboard_image.py [output_path]
     # If output_path omitted, saves to /tmp/vision-clipboard-<timestamp>.png
@@ -18,41 +22,94 @@ import os
 import sys
 import platform
 import subprocess
-import tempfile
 from datetime import datetime
 
 TIMEOUT = 10
 
 
-def save_mac_clipboardImage(output_path: str) -> bool:
+def save_mac_clipboard_image(output_path: str) -> bool:
+    def run_osascript(script_text: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["/usr/bin/osascript", "-e", script_text],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
+
+    tmp_script = f"/tmp/vision_clipboard_write_{os.getpid()}.scpt"
     try:
-        script = (
-            'set theImage to clipboard as record '
-            '(class type TIFF picture, class type PNG picture) '
-            'in theSystemClipboard; '
-            'set theData to theImage as TIFF picture; '
-            'return (do shell script "mkdir -p $(dirname ' + output_path.replace("'", "'\\''") + ") && echo 'ok'") as string; '
-            'do shell script "cat > ' + output_path.replace("'", "'\\''") + "' with scalar input theData"
+        # Try TIFF picture first (always available for screenshots)
+        check_script = (
+            "try\n"
+            "  set img to (the clipboard as TIFF picture)\n"
+            "on error\n"
+            '  return "NO_TIFF"\n'
+            "end try\n"
+            'return "HAS_TIFF"'
         )
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True, text=True, timeout=TIMEOUT
+        r = run_osascript(check_script)
+        if r.stdout.strip() != "HAS_TIFF":
+            return False
+
+        # Write TIFF data to file using a temp script file
+        write_script = (
+            "try\n"
+            "  set img to (the clipboard as TIFF picture)\n"
+            '  set f to open for access (POSIX file "'
+            + output_path.replace('"', '\\"')
+            + '") with write permission\n'
+            "  try\n"
+            "    write img to f\n"
+            "    close access f\n"
+            "  on error errMsg\n"
+            "    close access f\n"
+            "    error errMsg\n"
+            "  end try\n"
+            "on error errMsg\n"
+            '  return "ERR: " & errMsg\n'
+            "end try\n"
+            'return "OK"'
         )
-        return result.returncode == 0 and os.path.exists(output_path)
-    except Exception:
+
+        with open(tmp_script, "w", encoding="utf-8") as f:
+            f.write(write_script)
+
+        r = subprocess.run(
+            ["/usr/bin/osascript", tmp_script],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
+
+        if (
+            r.stdout.strip() == "OK"
+            and os.path.exists(output_path)
+            and os.path.getsize(output_path) > 0
+        ):
+            return True
+
         return False
+
+    finally:
+        if os.path.exists(tmp_script):
+            os.unlink(tmp_script)
 
 
 def save_linux_clipboard_image(output_path: str) -> bool:
-    tools = [
+    for cmd in [
         ["xclip", "-selection", "clipboard", "-t", "image/png", "-o"],
         ["wl-paste", "-t", "image/png"],
-    ]
-    for cmd in tools:
+    ]:
         try:
             with open(output_path, "wb") as f:
-                result = subprocess.run(cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=TIMEOUT)
-            if result.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                r = subprocess.run(
+                    cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=TIMEOUT
+                )
+            if (
+                r.returncode == 0
+                and os.path.exists(output_path)
+                and os.path.getsize(output_path) > 0
+            ):
                 return True
         except Exception:
             continue
@@ -63,14 +120,16 @@ def save_windows_clipboard_image(output_path: str) -> bool:
     ps = (
         f"Add-Type -AssemblyName System.Windows.Forms; "
         f"$img = [System.Windows.Forms.Clipboard]::GetImage(); "
-        f"if ($img) {{ $img.Save('{output_path.replace(chr(92), chr(92)*2)}', [System.Drawing.Imaging.ImageFormat]::Png); exit 0 }} else {{ exit 1 }}"
+        f"if ($img) {{ $img.Save(r'{output_path}', [System.Drawing.Imaging.ImageFormat]::Png); exit 0 }} else {{ exit 1 }}"
     )
     try:
-        result = subprocess.run(
+        r = subprocess.run(
             ["powershell", "-Command", ps],
-            capture_output=True, text=True, timeout=TIMEOUT
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
         )
-        return result.returncode == 0 and os.path.exists(output_path)
+        return r.returncode == 0 and os.path.exists(output_path)
     except Exception:
         return False
 
@@ -84,7 +143,7 @@ def save_clipboard_image(output_path: str = None) -> str:
 
     system = platform.system()
     if system == "Darwin":
-        ok = save_mac_clipboardImage(output_path)
+        ok = save_mac_clipboard_image(output_path)
     elif system == "Linux":
         ok = save_linux_clipboard_image(output_path)
     elif system == "Windows":
